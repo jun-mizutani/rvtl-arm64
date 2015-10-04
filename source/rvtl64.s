@@ -1,7 +1,7 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : rvtla64.s
-// 2015/07/16 - 2015/09/16 ver. 4.01
+// 2015/07/16 - 2015/10/05 ver. 4.01
 // Copyright (C) 2003-2015 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // rvtl.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
@@ -382,7 +382,7 @@ GetString:
         adr     x3, FileName
     1: // next:
         bl      GetChar
-        cmp     wv1, #'"                 // "' closing quote for emacs
+        cmp     wv1, #'"               // "' closing quote for emacs
         beq     2f
         tst     wv1, wv1
         beq     2f
@@ -3833,7 +3833,7 @@ func_rm:
         bl      FuncBegin           // char ** argp
         ldr     x1, [x1]
         mov     x0, AT_FDCWD
-	mov     x2, xzr
+        mov     x2, xzr
         mov     x8, #sys_unlinkat   // システムコール
         svc     #0
         bl      CheckError
@@ -4191,7 +4191,7 @@ mem_init:       .quad   MEMINIT
 
 .ifndef SMALL_VTL
                 .align   3
-start_msg:      .ascii   "RVTL64 Arm64 v.4.01 2015/09/16,(C)2015 Jun Mizutani\n"
+start_msg:      .ascii   "RVTL64 Arm64 v.4.01 2015/10/05,(C)2015 Jun Mizutani\n"
                 .ascii   "RVTL may be copied under the terms of the GNU "
                 .asciz   "General Public License.\n"
                 .align   3

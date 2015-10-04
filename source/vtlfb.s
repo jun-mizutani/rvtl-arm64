@@ -2,7 +2,7 @@
 //  Return of the Very Tiny Language (ARM)
 //  Copyright (C) 2003 - 2015 Jun Mizutani <mizutani.jun//nifty.ne.jp>
 //  file : vtlfb.s  frame buffer extention
-//  2015/08/19
+//  2015/09/25
 //-------------------------------------------------------------------------
 
         stp     x0, x30, [sp, #-16]!
@@ -104,7 +104,7 @@ func_fbt:
 //   d[3] = y      [xv7, #12] 転送先のY座標
 //   d[4] = Color  [xv7, #16] 色
 //   d[5] = ScrX   [xv7, #20] 転送先X方向のバイト数
-//   d[6] = Depth  [xv7, #24] 1ピクセルのバイト数
+//   d[6] = Depth  [xv7, #24] 1ピクセルのビット数
 Dot:
         stp     xv7, x30, [sp, #-16]!
         mov     x3, #'d'               // 引数は d[0] - d[5]
@@ -135,7 +135,7 @@ StartPoint:
         stp     x2, x30, [sp, #-16]!
         mul     x2, x1, x0             // Y * width
         ldr     w0, [xv7, #+ 8]        // X
-        add     x0, x2, x0,LSL #2      // Y * width + X*2
+        add     x0, x2, x0,LSL #2      // Y * width + X*4
         add     xv6, xv6, x0           // xv6=addr+Y * width + X
         ldr     w0, [xv7, #+24]        // color
         ldp     x2, x30, [sp], #16
@@ -148,7 +148,7 @@ StartPoint:
 // l[4] = x2     [xv7, #+16]      // l[5] = y2     [xv7, #+20]
 // l[6] = color  [xv7, #+24]
 // l[7] = ScrX   [xv7, #+28]
-// l[8] = Depth  [xv7, #+32]      // 1ピクセルのバイト数
+// l[8] = Depth  [xv7, #+32]      // 1ピクセルのビット数
 // l[9] = incx1  [xv7, #+36]
 // l[10] = incx2 [xv7, #+40]
 // xv6 : framebuffer
@@ -332,7 +332,7 @@ PatternSize:
 //   p[5] = PatH   [xv7, #+20] パターンの高さ
 //   p;3; = mem    [xv7, #+24] パターンの格納アドレス
 //   p[8] = ScrX   [xv7, #+32] 転送先X方向のバイト数
-//   p[9] = Depth  [xv7, #+36] 1ピクセルのバイト数
+//   p[9] = Depth  [xv7, #+36] 1ピクセルのビット数
 
 PatternTransfer:
         stp     xv3, x30, [sp, #-16]!
@@ -400,7 +400,7 @@ PatternTransfer2:
 //   q[5] = PatH   [xv7, #+20] パターンの高さ
 //   q;3; = mem    [xv7, #+24] パターンの格納アドレス
 //   q[8] = ScrX   [xv7, #+32] X方向のバイト数
-//   q[9] = Depth  [xv7, #+36] 1ピクセルのバイト数
+//   q[9] = Depth  [xv7, #+36] 1ピクセルのビット数
 //   q[10]= Mask   [xv7, #+40] マスク色
 MPatternTransfer:
         stp     xv3, x30, [sp, #-16]!
@@ -436,7 +436,7 @@ pt_exit:
 //   r[5] = PatH   [xv7, #+20] パターンの高さ
 //   r[6] = Color  [xv7, #+24] パターンの色
 //   r[7] = ScrX   [xv7, #+28] X方向のバイト数
-//   r[8] = Depth  [xv7, #+32] 1ピクセルのバイト数
+//   r[8] = Depth  [xv7, #+32] 1ピクセルのビット数
 
 PatternFill:
         stp     xv5, x30, [sp, #-16]!
@@ -486,16 +486,12 @@ FrameBufferFill:
         ldr     w1, [xv7, #+20]        // bits/pixel
         lsr     x1, x1, #4
         cbnz    x1, 2f                 // status
-        // tst     x1, x1
-        // bne     2f
     1:  strb    w0, [xv6], #1          // フレームバッファへ byte
         subs    x2, x2, #1
         bne     1b
         b       5f                     // exit
     2:  lsr     x1, x1, #1
         cbnz    x1, 4f                 // status
-        // tst     x1, x1                 // status
-        // bne     4f                     // dword
     3:  strh    w0, [xv6], #2          // フレームバッファへ hword
         subs    x2, x2, #1
         bne     1b

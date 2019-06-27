@@ -1,8 +1,8 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : rvtla64.s
-// 2015/07/16 - 2015/10/05 ver. 4.01
-// Copyright (C) 2003-2015 Jun Mizutani <mizutani.jun@nifty.ne.jp>
+// 2015/07/16 - 2019/06/27 ver. 4.01b
+// Copyright (C) 2003-2019 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // rvtl.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
 
@@ -1370,7 +1370,7 @@ Exp:
         ret
 
 equal_err:
-        .asciz   "\n= required."
+        .asciz   "\n= reqiured."
         .align   2
 
 //-------------------------------------------------------------------------

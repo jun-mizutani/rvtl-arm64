@@ -1,8 +1,8 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : vtllib.s
-// 2015/09/16
-// Copyright (C) 2003-2015 Jun Mizutani <mizutani.jun@nifty.ne.jp>
+// 2019/06/27
+// Copyright (C) 2003-2019 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // vtllib.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
 
@@ -1352,28 +1352,28 @@ DirName:            .skip   MAXLINE
 PathName:           .skip   MAXLINE
 
                     .align  3
-PartialName:        .quad   1           // 部分ファイル名先頭アドレス格納
+PartialName:        .quad   0           // 部分ファイル名先頭アドレス格納
 FileNameBuffer:     .skip   2048, 0     // 2kbyte for filename completion
 FNArray:            .skip   MAX_FILE*8  // long* Filename[0..255]
-FNBPointer:         .quad   1           // FileNameBufferの格納済みアドレス+1
-FNCount:            .quad   1           // No. of Filenames
+FNBPointer:         .quad   0           // FileNameBufferの格納済みアドレス+1
+FNCount:            .quad   0           // No. of Filenames
 
                     .align 3
 old_termios:
-ot_c_iflag:         .long   1           // input mode flags
-ot_c_oflag:         .long   1           // output mode flags
-ot_c_cflag:         .long   1           // control mode flags
-ot_c_lflag:         .long   1           // local mode flags
-ot_c_line:          .byte   1           // line discipline
+ot_c_iflag:         .long   0           // input mode flags
+ot_c_oflag:         .long   0           // output mode flags
+ot_c_cflag:         .long   0           // control mode flags
+ot_c_lflag:         .long   0           // local mode flags
+ot_c_line:          .byte   0           // line discipline
 ot_c_cc:            .skip   NCCS        // control characters
 
                     .align 3
 new_termios:
-nt_c_iflag:         .long   1           // input mode flags
-nt_c_oflag:         .long   1           // output mode flags
-nt_c_cflag:         .long   1           // control mode flags
-nt_c_lflag:         .long   1           // local mode flags
-nt_c_line:          .byte   1           // line discipline
+nt_c_iflag:         .long   0           // input mode flags
+nt_c_oflag:         .long   0           // output mode flags
+nt_c_cflag:         .long   0           // control mode flags
+nt_c_lflag:         .long   0           // local mode flags
+nt_c_line:          .byte   0           // line discipline
 nt_c_cc:            .skip   NCCS        // control characters
 
                     .align 3
@@ -1389,37 +1389,37 @@ osa_flags:          .quad   0           // 48
 osa_restorer:       .quad   0           // 56
 
 TV:
-tv_sec:             .quad   1
-tv_usec:            .quad   1
+tv_sec:             .quad   0
+tv_usec:            .quad   0
 TZ:
-tz_minuteswest:     .quad   1
-tz_dsttime:         .quad   1
+tz_minuteswest:     .quad   0
+tz_dsttime:         .quad   0
 
 winsize:
-ws_row:             .hword  1
-ws_col:             .hword  1
-ws_xpixel:          .hword  1
-ws_ypixel:          .hword  1
+ws_row:             .hword  0
+ws_col:             .hword  0
+ws_xpixel:          .hword  0
+ws_ypixel:          .hword  0
 
 ru:                               // 18 words
-ru_utime_tv_sec:    .long   1       // user time used
-ru_utime_tv_usec:   .long   1       //
-ru_stime_tv_sec:    .long   1       // system time used
-ru_stime_tv_usec:   .long   1       //
-ru_maxrss:          .long   1       // maximum resident set size
-ru_ixrss:           .long   1       // integral shared memory size
-ru_idrss:           .long   1       // integral unshared data size
-ru_isrss:           .long   1       // integral unshared stack size
-ru_minflt:          .long   1       // page reclaims
-ru_majflt:          .long   1       // page faults
-ru_nswap:           .long   1       // swaps
-ru_inblock:         .long   1       // block input operations
-ru_oublock:         .long   1       // block output operations
-ru_msgsnd:          .long   1       // messages sent
-ru_msgrcv:          .long   1       // messages received
-ru_nsignals:        .long   1       // signals received
-ru_nvcsw:           .long   1       // voluntary context switches
-ru_nivcsw:          .long   1       // involuntary
+ru_utime_tv_sec:    .long   0       // user time used
+ru_utime_tv_usec:   .long   0       //
+ru_stime_tv_sec:    .long   0       // system time used
+ru_stime_tv_usec:   .long   0       //
+ru_maxrss:          .long   0       // maximum resident set size
+ru_ixrss:           .long   0       // integral shared memory size
+ru_idrss:           .long   0       // integral unshared data size
+ru_isrss:           .long   0       // integral unshared stack size
+ru_minflt:          .long   0       // page reclaims
+ru_majflt:          .long   0       // page faults
+ru_nswap:           .long   0       // swaps
+ru_inblock:         .long   0       // block input operations
+ru_oublock:         .long   0       // block output operations
+ru_msgsnd:          .long   0       // messages sent
+ru_msgrcv:          .long   0       // messages received
+ru_nsignals:        .long   0       // signals received
+ru_nvcsw:           .long   0       // voluntary context switches
+ru_nivcsw:          .long   0       // involuntary
 
                     .align 3
 dir_ent:                           // 256 bytesのdir_ent格納領域
@@ -1429,9 +1429,9 @@ dir_ent:                           // 256 bytesのdir_ent格納領域
 //        unsigned char   d_type;     // 18
 //        char            d_name[0];  // 19    ディレクトリエントリの名前
 // -----------------------------------------------------------------------
-// de_d_ino:         .long   1       // 0
-// de_d_off:         .long   1       // 4
-// de_d_reclen:      .hword  1       // 8
+// de_d_ino:         .long   0       // 0
+// de_d_off:         .long   0       // 4
+// de_d_reclen:      .hword  0       // 8
 // de_d_name:                        // 10    ディレクトリエントリの名前
                     .skip   512
 
@@ -1441,26 +1441,26 @@ size_dir_ent = . - dir_ent
                     .align 3
 // from linux-4.1.2/include/uapi/asm-generic/stat.h
 file_stat:                          // 128 bytes
-fs_st_dev:          .quad   1       // 0  ファイルのデバイス番号
-fs_st_ino:          .quad   1       // 8  ファイルのinode番号
-fs_st_mode:         .long   1       // 16 ファイルのアクセス権とタイプ
-fs_st_nlink:        .long   1       // 20
-fs_st_uid:          .long   1       // 24
-fs_st_gid:          .long   1       // 28
-fs_st_rdev:         .quad   1       // 32
-fs_st_pad1:         .quad   1       // 40
-fs_st_size:         .quad   1       // 48 ファイルサイズ(byte)
-fs_st_blksize:      .long   1       // 56 ブロックサイズ
-fs_st_pad2:         .long   1       // 60
-fs_st_blocks:       .quad   1       // 64
-fs_st_atime:        .quad   1       // 72 ファイルの最終アクセス日時
-fs_st_atime_nsec:   .quad   1       // 80 ファイルの最終アクセスnsec
-fs_st_mtime:        .quad   1       // 88 ファイルの最終更新日時
-fs_st_mtime_nsec:   .quad   1       // 96 ファイルの最終更新nsec
-fs_st_ctime:        .quad   1       //104 ファイルの最終status変更日時
-fs_st_ctime_nsec:   .quad   1       //112 ファイルの最終status変更nsec
-fs___unused4:       .long   1       //120
-fs___unused5:       .long   1       //124
+fs_st_dev:          .quad   0       // 0  ファイルのデバイス番号
+fs_st_ino:          .quad   0       // 8  ファイルのinode番号
+fs_st_mode:         .long   0       // 16 ファイルのアクセス権とタイプ
+fs_st_nlink:        .long   0       // 20
+fs_st_uid:          .long   0       // 24
+fs_st_gid:          .long   0       // 28
+fs_st_rdev:         .quad   0       // 32
+fs_st_pad1:         .quad   0       // 40
+fs_st_size:         .quad   0       // 48 ファイルサイズ(byte)
+fs_st_blksize:      .long   0       // 56 ブロックサイズ
+fs_st_pad2:         .long   0       // 60
+fs_st_blocks:       .quad   0       // 64
+fs_st_atime:        .quad   0       // 72 ファイルの最終アクセス日時
+fs_st_atime_nsec:   .quad   0       // 80 ファイルの最終アクセスnsec
+fs_st_mtime:        .quad   0       // 88 ファイルの最終更新日時
+fs_st_mtime_nsec:   .quad   0       // 96 ファイルの最終更新nsec
+fs_st_ctime:        .quad   0       //104 ファイルの最終status変更日時
+fs_st_ctime_nsec:   .quad   0       //112 ファイルの最終status変更nsec
+fs___unused4:       .long   0       //120
+fs___unused5:       .long   0       //124
 
 .endif
 

@@ -4191,7 +4191,7 @@ mem_init:       .quad   MEMINIT
 
 .ifndef SMALL_VTL
                 .align   3
-start_msg:      .ascii   "RVTL64 Arm64 v.4.01 2015/10/05,(C)2015 Jun Mizutani\n"
+start_msg:      .ascii   "RVTL64 Arm64 v.4.01b 2019/06/27,(C)2019 Jun Mizutani\n"
                 .ascii   "RVTL may be copied under the terms of the GNU "
                 .asciz   "General Public License.\n"
                 .align   3

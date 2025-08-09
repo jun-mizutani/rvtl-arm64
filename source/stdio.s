@@ -1,7 +1,7 @@
 // ------------------------------------------------------------------------
 // Standard I/O Subroutine for ARM64
-//   2015/07/29 arm64 system call
-// Copyright (C) 2015  Jun Mizutani <mizutani.jun@nifty.ne.jp>
+//   2025/08/09 arm64 system call
+// Copyright (C) 2015-2025  Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // stdio.s may be copied under the terms of the GNU General Public License.
 // ------------------------------------------------------------------------
 
@@ -395,11 +395,11 @@ PrintRight:
         cmp     x0, #0
         bne     1b                      // done ?
 
-        subs    x5, x5, x2              // x5 = no. of space
-        ble     3f                      // dont write space
         cmp     x3, #0
-        b.eq    2f
+        b.eq    5f                      // if positive
         sub     x5, x5, #1              // reserve spase for -
+    5:  subs    x5, x5, x2              // x5 = no. of space
+        ble     3f                      // dont write space
     2:  mov     x0, x4                  // output space or '0'
         bl      OutChar
         subs    x5, x5, #1              // nspace--

@@ -1,10 +1,10 @@
 # Makefile for rvtl64
-#     2015/08/21  Jun Mizutani
+#     2025/08/09  Jun Mizutani
 
 
 INSTALLDIR = /usr/bin/
 
-SOURCE = debug.s ext.s mt19937.s signal.s syscalls.s vtlfb.s vtlsys.s \
+SOURCE = debug.s ext.s mt19937ar.s signal.s syscalls.s vtlfb.s vtlsys.s \
          errorno.s fblib.s rvtl64.s stdio.s syserror.s vtllib.s
 
 # self assemble

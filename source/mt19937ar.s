@@ -1,45 +1,50 @@
 //---------------------------------------------------------------------
 //   Mersenne Twister
-//   file : mt19937.s
-//     Rewritten in ARM64 Assembly by Jun Mizutani 2015/08/06.
-//     From original code in C by Takuji Nishimura(mt19937int.c).
-//     Arm64 version Copyright (C) 2015 Jun Mizutani.
+//   file : mt19937ar.s
+//     Rewritten in ARM64 Assembly by Jun Mizutani 2025/08/09.
+//     From original code in C by Takuji Nishimura(mt19937ar.c).
+//     SISC-V version Copyright (C) 2025 Jun Mizutani.
 //---------------------------------------------------------------------
 
-// A C-program for MT19937: Integer version (1999/10/28)
-//  genrand() generates one pseudorandom unsigned integer (32bit)
-// which is uniformly distributed among 0 to 2^32-1  for each
-// call. sgenrand(seed) sets initial values to the working area
-// of 624 words. Before genrand(), sgenrand(seed) must be
-// called once. (seed is any 32-bit integer.)
-//   Coded by Takuji Nishimura, considering the suggestions by
-// Topher Cooper and Marc Rieffel in July-Aug. 1997.
+// A C-program for MT19937, with initialization improved 2002/1/26.
+// Coded by Takuji Nishimura and Makoto Matsumoto.
 //
-// This library is free software; you can redistribute it and/or
-// modify it under the terms of the GNU Library General Public
-// License as published by the Free Software Foundation; either
-// version 2 of the License, or (at your option) any later
-// version.
-// This library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU Library General Public License for more details.
-// You should have received a copy of the GNU Library General
-// Public License along with this library; if not, write to the
-// Free Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-// 02111-1307  USA
+//  Before using, initialize the state by using init_genrand(seed)  
+// or init_by_array(init_key, key_length).
 //
-// Copyright (C) 1997, 1999 Makoto Matsumoto and Takuji Nishimura.
-// Any feedback is very welcome. For any question, comments,
-// see http://www.math.keio.ac.jp/matumoto/emt.html or email
-// matumoto//math.keio.ac.jp
+//  Copyright (C) 1997 - 2002, Makoto Matsumoto and Takuji Nishimura,
+// All rights reserved.
 //
-// REFERENCE
-// M. Matsumoto and T. Nishimura,
-// "Mersenne Twister: A 623-Dimensionally Equidistributed Uniform
-// Pseudo-Random Number Generator",
-// ACM Transactions on Modeling and Computer Simulation,
-// Vol. 8, No. 1, January 1998, pp 3--30.
+//  Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions
+// are met:
+//
+//    1. Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//
+//    2. Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    3. The names of its contributors may not be used to endorse or promote 
+//      products derived from this software without specific prior written 
+//      permission.
+//
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+// CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+// EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+// PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+// PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+// LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+// NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+// SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+//
+//   Any feedback is very welcome.
+// http://www.math.sci.hiroshima-u.ac.jp/~m-mat/MT/emt.html
+// email: m-mat @ math.sci.hiroshima-u.ac.jp (remove space)
 
 .include "registers.s"
 
@@ -56,20 +61,21 @@ sgenrand:
         stp     xv6, xv7, [sp, #-16]!
         adr     xv3, mt
         ldr     wv4, N
-        ldr     wv5, nffff0000
-        ldr     wv6, n69069
-        mov     w2, #0                 // I=0
+        ldr     wv5, nffffffff
+        ldr     wv6, n6C078965
+        str     w0, [xv3]              // mt[0]=x0
+        mov     w2, #1                 // i=1
     1:
-        and     w1, w0, wv5            // A = seed & 0xffff0000
-        mul     w0, wv6, w0            // w0 = seed * 69069
-        add     w0, w0, #1             // S = R * S + 1
-        and     wv2, w0, wv5           // S & 0xffff0000
-        lsr     wv2, wv2, #16          // (S & 0xffff0000 >> 16)
-        orr     w1, w1, wv2            // A=A|(S & 0xffff0000 >> 16)
-        str     w1, [xv3, x2,LSL #2]   // mt[i]=A
-        mul     w0, wv6, w0
-        add     w0, w0, #1             // S = R * S + 1
-        add     w2, w2, #1             // I=I+1
+        sub     w1, w2, #1             // i-1
+        add     xv7, xv3, w1, uxtw #2  // mt + 4*(i-1)
+        ldr     w0, [xv7]              // w0 = mt[i-1]
+        lsr     w1, w0, #30
+        eor     w0, w0, w1             // w0 ^ (w0 >> 30)
+        mul     w0, w0, wv6            // w0^(w0>>30)*1812433253
+        add     w0, w0, w2             // w0 + i
+        add     xv7, xv3, w2, uxtw #2  // mt[i] = w0
+        str     w0, [xv7]
+        add     w2, w2, #1
         cmp     w2, wv4
         blt     1b                     // I+1 < 624
 
@@ -184,8 +190,8 @@ genrand:
 
 N:                  .long   624
 M:                  .long   397
-n69069:             .long   69069
-nffff0000:          .long   0xffff0000
+n6C078965:          .long   1812433253
+nffffffff:          .long   0xffffffff
 TEMPERING_MASK_B:   .long   0x9d2c5680
 TEMPERING_MASK_C:   .long   0xefc60000
 UPPER_MASK:         .long   0x80000000

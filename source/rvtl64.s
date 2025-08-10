@@ -1,7 +1,7 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : rvtla64.s
-// 2015/07/16 - 2025/08/09 ver. 4.02
+// 2015/07/16 - 2025/08/10 ver. 4.02
 // Copyright (C) 2003-2025 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // rvtl.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
@@ -4191,7 +4191,7 @@ mem_init:       .quad   MEMINIT
 
 .ifndef SMALL_VTL
                 .align   3
-start_msg:      .ascii   "RVTL64 Arm64 v.4.02 2025/08/09,(C)2015-2025 Jun Mizutani\n"
+start_msg:      .ascii   "RVTL64 Arm64 v.4.02 2025-08-10,(C)2015-2025 Jun Mizutani\n"
                 .ascii   "RVTL may be copied under the terms of the GNU "
                 .asciz   "General Public License.\n"
                 .align   3

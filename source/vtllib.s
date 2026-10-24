@@ -1,8 +1,8 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : vtllib.s
-// 2019/06/27
-// Copyright (C) 2003-2019 Jun Mizutani <mizutani.jun@nifty.ne.jp>
+// 2019/06/27 - 2026/10/24
+// Copyright (C) 2003-2026 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // vtllib.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
 
@@ -18,6 +18,7 @@ __VTLLIB = 1
 .text
 
 MAXLINE      = 128         // Maximum Line Length
+PATHNAMEMAX  = MAXLINE + 512 // DirName + directory-entry buffer
 MAX_FILE     = 256         // Maximum Filename
 MAXHISTORY   =  16         // No. of history buffer
 
@@ -984,6 +985,10 @@ GetFileStat:
         bne     1b
     2:  mov     x0, x2                  // ファイル名の長さ取得
         bl      StrLen                  // <r0:アドレス, >r1:文字数
+        sub     x4, xip, x3             // ディレクトリ名の長さ
+        add     x4, x4, x1              // ディレクトリ名 + ファイル名
+        cmp     x4, #PATHNAMEMAX        // 終端NULを含めて収まるか
+        bhs     5f
     3:
         ldrb    w4, [x2], #1            // ファイル名のコピー
         strb    w4, [xip], #1           // PathNameに書き込み
@@ -1005,6 +1010,9 @@ GetFileStat:
         ldp     x1, x2,  [sp], #16
         ldp     x0, x30, [sp], #16
         ret
+    5:  adr     x1, file_stat           // 長すぎる名前では種類を未設定にする
+        str     wzr, [x1, #+16]
+        b       4b
 
 //--------------------------------------------------------------
 // ディレクトリ中で一致したファイル名をファイル名バッファ
@@ -1262,7 +1270,7 @@ WinSize:
         adr     x2, winsize
         mov     x8, #sys_ioctl
         svc     #0
-        ldr     x0, [x2]                 // winsize.ws_row
+        ldr     w0, [x2]                 // ws_row + ws_col (32bit)
         ldp     x1,  x2, [sp], #16
         ldp     x8, x30, [sp], #16
         ret
@@ -1349,7 +1357,7 @@ history:            .skip   MAXLINE * MAXHISTORY
 
                     .align  3
 DirName:            .skip   MAXLINE
-PathName:           .skip   MAXLINE
+PathName:           .skip   PATHNAMEMAX
 
                     .align  3
 PartialName:        .quad   0           // 部分ファイル名先頭アドレス格納

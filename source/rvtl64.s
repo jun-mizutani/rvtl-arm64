@@ -401,16 +401,32 @@ GetString:
 //-------------------------------------------------------------------------
   GetString2:
         stp     x3, x30, [sp, #-16]!
+        stp     xv4, x4, [sp, #-16]!
         mov     x2, xzr
         adr     x3, FileName
-    1:  ldrb    w1, [x0, x2]
+    1:  mov     x4, xv4
+        add     xv4, x0, x2
+        bl      RangeCheck             // コピー元の読み出し位置を確認
+        mov     xv4, x4
+        bcs     3f
+        ldrb    w1, [x0, x2]
         strb    w1, [x3, x2]
         tst     w1, w1
         beq     2f
         add     x2, x2, #1
         cmp     x2, #FNAMEMAX
         blo     1b
-    2:  ldp     x3, x30, [sp], #16
+    2:  mov     w1, wzr                // 最大長までコピーした場合もNUL終端
+        strb    w1, [x3, x2]
+        msr     nzcv, xzr
+        b       4f
+    3:  mov     w1, wzr                // 範囲外ならここで終端
+        strb    w1, [x3, x2]
+        mov     x1, #0x29000000
+        msr     nzcv, x1               // set carry
+    4:
+        ldp     xv4, x4, [sp], #16
+        ldp     x3, x30, [sp], #16
         ret
 
 //-------------------------------------------------------------------------
@@ -1007,29 +1023,60 @@ SetVar:         // 変数代入
     s_array1:
         bl      s_array
         bcs     s_range_err            // 範囲外をアクセス
-        strb    w0, [xv4, x1]          // 代入
+        adds    xv4, xv4, x1           // 添字を加えた要素アドレス
+        b.vs    s_range_err            // アドレス計算のオーバーフロー
+        mov     x1, #1
+        bl      RangeCheckSpan         // 1バイト要素全体を範囲チェック
+        bcs     s_range_err
+        strb    w0, [xv4]              // 代入
         ldp     x0, x30, [sp], #16
         ret
 
     s_array2:
         bl      s_array
         bcs     s_range_err            // 範囲外をアクセス
-        lsl     x1, x1, #1
-        strh    w0, [xv4, x1]          // 代入
+        lsl     x2, x1, #1             // 2バイト要素のオフセット
+        asr     x3, x2, #1
+        cmp     x3, x1
+        bne     s_range_err            // オフセットのオーバーフロー
+        adds    xv4, xv4, x2
+        b.vs    s_range_err
+        mov     x1, #2
+        bl      RangeCheckSpan         // 2バイト要素全体を範囲チェック
+        bcs     s_range_err
+        strh    w0, [xv4]              // 代入
         ldp     x0, x30, [sp], #16
         ret
 
     s_array4:
         bl      s_array
         bcs     s_range_err            // 範囲外をアクセス
-        str     w0, [xv4, x1,LSL #2]   // 代入
+        lsl     x2, x1, #2             // 4バイト要素のオフセット
+        asr     x3, x2, #2
+        cmp     x3, x1
+        bne     s_range_err            // オフセットのオーバーフロー
+        adds    xv4, xv4, x2
+        b.vs    s_range_err
+        mov     x1, #4
+        bl      RangeCheckSpan         // 4バイト要素全体を範囲チェック
+        bcs     s_range_err
+        str     w0, [xv4]              // 代入
         ldp     x0, x30, [sp], #16
         ret
 
     s_array8:
         bl      s_array
         bcs     s_range_err            // 範囲外をアクセス
-        str     x0, [xv4, x1,LSL #3]   // 代入
+        lsl     x2, x1, #3             // 8バイト要素のオフセット
+        asr     x3, x2, #3
+        cmp     x3, x1
+        bne     s_range_err            // オフセットのオーバーフロー
+        adds    xv4, xv4, x2
+        b.vs    s_range_err
+        mov     x1, #8
+        bl      RangeCheckSpan         // 8バイト要素全体を範囲チェック
+        bcs     s_range_err
+        str     x0, [xv4]              // 代入
         ldp     x0, x30, [sp], #16
         ret
 
@@ -1050,11 +1097,21 @@ SetVar:         // 変数代入
         beq     2f
         tst     xv1, xv1
         beq     2f
+        mov     x1, xv4
+        add     xv4, xv4, x2
+        bl      RangeCheck             // 文字列の書き込み先を確認
+        mov     xv4, x1
+        bcs     s_range_err
         strb    wv1, [xv4, x2]
         add     x2, x2, #1
         cmp     x2, #FNAMEMAX
         blo     1b
     2:                                 // done
+        mov     x1, xv4
+        add     xv4, xv4, x2
+        bl      RangeCheck             // 終端NULの書き込み先を確認
+        mov     xv4, x1
+        bcs     s_range_err
         mov     xv1, xzr
         strb    wv1, [xv4, x2]
         mov     x1, #'%                // %
@@ -1065,29 +1122,58 @@ SetVar:         // 変数代入
     s_sp0:
         bl      Exp                    // コピー元のアドレス
         cmp     xv4, x0
-        beq     3f
+        beq     Lstrptr_length
         mov     x2, xv4                // xv4退避
         mov     xv4, x0                // RangeCheckはxv4を見る
         bl      RangeCheck             // コピー先を範囲チェック
         mov     xv4, x2                // コピー先復帰
         bcs     s_range_err            // 範囲外をアクセス
         mov     x2, xzr
-    1:  ldrb    w1, [x0], #1
+        mov     x3, #0x40000
+        sub     x3, x3, #1              // NULを含めて最大256KB
+    1:  bl      RangeCheck             // コピー先の現在位置を確認
+        bcs     s_range_err
+        mov     x1, xv4
+        mov     xv4, x0                // コピー元の現在位置
+        bl      RangeCheck
+        mov     xv4, x1
+        bcs     s_range_err
+        ldrb    w1, [x0], #1
+        tst     w1, w1
+        beq     2f
+        cmp     x2, x3
+        bhs     3f
         strb    w1, [xv4], #1
         add     x2, x2, #1
-        cmp     x2, #0x40000           // 262144文字まで
-        beq     2f
-        tst     w1, w1
-        bne     1b
-    2:  sub     x2, x2, #1             // 文字数から行末を除く
+        b       1b
+    2:  mov     w1, wzr                // コピー元の終端NUL
+        strb    w1, [xv4], #1
+        b       4f
+    3:  mov     w1, wzr                // 上限ではNULを付けて終了
+        strb    w1, [xv4], #1
+    4:
         mov     x1, #'%                // %
         str     x2, [x29, x1,LSL #3]   // コピーされた文字数
         ldp     x0, x30, [sp], #16
         ret
 
-    3:  bl      StrLen
-        mov     x2, #'%                // %
-        str     x1, [x29, x2,LSL #3]   // 文字数
+Lstrptr_length:
+        mov     x2, xzr
+Lstrptr_length_loop:
+        mov     x1, xv4
+        add     xv4, xv4, x2
+        bl      RangeCheck             // 読み出し位置を確認
+        mov     xv4, x1
+        bcs     s_range_err
+        ldrb    w1, [xv4, x2]
+        tst     w1, w1
+        beq     Lstrptr_length_done
+        add     x2, x2, #1
+        cmp     x2, #0x40000           // 256KB以内で長さを確認
+        blo     Lstrptr_length_loop
+Lstrptr_length_done:
+        mov     x1, #'%                // %
+        str     x2, [x29, x1,LSL #3]   // 文字数
         ldp     x0, x30, [sp], #16
         ret
 
@@ -1116,10 +1202,14 @@ RangeCheck:
         mov     x2, #'[                // 範囲チェックフラグ
         ldr     x0, [x29, x2,LSL #3]
         tst     x0, x0
-        beq     2f                     // 0 ならチェックしない
-        adr     x0, input2             // インプットバッファはOK
+        beq     Lrange_check_ok        // 0 ならチェックしない
+        adr     x0, input2             // インプットバッファ全体はOK
         cmp     xv4, x0
-        beq     2f
+        blo     Lrange_check_general
+        add     x0, x0, #MAXLINE
+        cmp     xv4, x0
+        bcc     Lrange_check_ok
+Lrange_check_general:
         mov     x2, #','               // プログラム先頭
         ldr     x0, [x29, x2,LSL #3]
         mov     x2, #'*'               // RAM末
@@ -1127,15 +1217,43 @@ RangeCheck:
         cmp     x0, xv4                // if = > addr, stc
         bhi     1f
         cmp     xv4, x1                // if * <= addr, stc
-        bcc     2f
+        bcc     Lrange_check_ok
     1:  mov     x0, #0x29000000
         msr     nzcv, x0               // set carry
         ldp     x1, x2, [sp], #16
         ldp     x0, x30, [sp], #16
         ret
-    2:  msr     nzcv, xzr              // clear carry
+Lrange_check_ok:
+        msr     nzcv, xzr              // clear carry
         ldp     x1, x2, [sp], #16
         ldp     x0, x30, [sp], #16
+        ret
+
+//-------------------------------------------------------------------------
+// xv4からx1バイト分の先頭と末尾を範囲チェック
+//-------------------------------------------------------------------------
+RangeCheckSpan:
+        stp     x3, x30, [sp, #-16]!
+        stp     x1, x2, [sp, #-16]!
+        mov     x3, xv4                // 元の先頭アドレスを保存
+        mov     x2, x1                 // アクセス幅
+        bl      RangeCheck             // 先頭を確認
+        bcs     Lrange_span_error
+        sub     x1, x2, #1
+        adds    xv4, x3, x1            // 最後のバイト
+        bcs     Lrange_span_error
+        bl      RangeCheck             // 最後を確認
+        bcs     Lrange_span_error
+        mov     xv4, x3
+        ldp     x1, x2, [sp], #16
+        ldp     x3, x30, [sp], #16
+        ret
+Lrange_span_error:
+        mov     xv4, x3
+        mov     x0, #0x29000000
+        msr     nzcv, x0               // set carry
+        ldp     x1, x2, [sp], #16
+        ldp     x3, x30, [sp], #16
         ret
 
 //-------------------------------------------------------------------------
@@ -1444,9 +1562,12 @@ Variable:
     v_array1:
         bl      Exp                    // 1バイト配列
         ldr     xv4, [xv4]
-        bl      RangeCheck             // 範囲チェック
+        adds    xv4, xv4, x0           // 添字を加えた要素アドレス
+        b.vs    v_range_err
+        mov     x1, #1
+        bl      RangeCheckSpan         // 1バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
-        ldrb    w1, [xv4, x0]
+        ldrb    w1, [xv4]
         bl      GetChar                // skip )
         ldp     xv4, x30, [sp], #16
         ret
@@ -1454,10 +1575,16 @@ Variable:
     v_array2:
         bl      Exp                    // 2バイト配列
         ldr     xv4, [xv4]
-        bl      RangeCheck             // 範囲チェック
+        lsl     x1, x0, #1             // 2バイト要素のオフセット
+        asr     x2, x1, #1
+        cmp     x2, x0
+        bne     v_range_err
+        adds    xv4, xv4, x1
+        b.vs    v_range_err
+        mov     x1, #2
+        bl      RangeCheckSpan         // 2バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
-        lsl     x0, x0, #1
-        ldrh    w1, [xv4, x0]
+        ldrh    w1, [xv4]
         bl      GetChar                // skip }
         ldp     xv4, x30, [sp], #16
         ret
@@ -1465,9 +1592,16 @@ Variable:
     v_array4:
         bl      Exp                    // 4バイト配列
         ldr     xv4, [xv4]
-        bl      RangeCheck             // 範囲チェック
+        lsl     x1, x0, #2             // 4バイト要素のオフセット
+        asr     x2, x1, #2
+        cmp     x2, x0
+        bne     v_range_err
+        adds    xv4, xv4, x1
+        b.vs    v_range_err
+        mov     x1, #4
+        bl      RangeCheckSpan         // 4バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
-        ldr     w1, [xv4, x0,LSL #2]
+        ldr     w1, [xv4]
         bl      GetChar                // skip ]
         ldp     xv4, x30, [sp], #16
         ret
@@ -1475,9 +1609,16 @@ Variable:
     v_array8:
         bl      Exp                    // 4バイト配列
         ldr     xv4, [xv4]
-        bl      RangeCheck             // 範囲チェック
+        lsl     x1, x0, #3             // 8バイト要素のオフセット
+        asr     x2, x1, #3
+        cmp     x2, x0
+        bne     v_range_err
+        adds    xv4, xv4, x1
+        b.vs    v_range_err
+        mov     x1, #8
+        bl      RangeCheckSpan         // 8バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
-        ldr     x1, [xv4, x0,LSL #3]
+        ldr     x1, [xv4]
         bl      GetChar                // skip ]
         ldp     xv4, x30, [sp], #16
         ret
@@ -3165,7 +3306,11 @@ Com_Exec:
         bne     0f
         bl      SkipEqualExp
         bl      GetString2
+        bcs     Lexec_range_error
         b       3f
+Lexec_range_error:
+        mov     xv1, #0xFF
+        b       LongJump
     0:  bl      GetChar                // skip double quote
         cmp     xv1, #'"'              // "
         beq     1f
@@ -4109,6 +4254,7 @@ FuncBegin:
         mov     xv4, x2                // コピー先復帰
         bcs     4f                     // 範囲外をアクセス
         bl      GetString2             // FileNameにコピー
+        bcs     4f
         b       3f
     1:  ldrb    wip, [xv3]
         cmp     wip, #'"'
@@ -4285,7 +4431,8 @@ stat_addr:      .quad   0
 
                 .align  3
 input2:         .skip   MAXLINE
-FileName:       .skip   FNAMEMAX
+FileName:       .skip   FNAMEMAX+1
+                .align  3
 pid:            .quad   0               // x29-40
 VSTACK:         .quad   0               // x29-32
 FileDescW:      .quad   0               // x29-24

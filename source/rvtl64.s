@@ -359,6 +359,8 @@ LoadCode:
         cbz     w0, 2f                 // w0=0 then file open
         subs    x2, x2, #1
         bne     1b
+        mov     w0, wzr                // 長い引数もFileNameをNUL終端
+        strb    w0, [x1]
 
     2:  adr     x0, FileName           // ファイルオープン
         bl      fropen                 // open
@@ -405,7 +407,8 @@ GetString:
         mov     x2, xzr
         adr     x3, FileName
     1:  mov     x4, xv4
-        add     xv4, x0, x2
+        adds    xv4, x0, x2
+        b.cs    3f                     // 読み出し位置のアドレス折り返し
         bl      RangeCheck             // コピー元の読み出し位置を確認
         mov     xv4, x4
         bcs     3f
@@ -1023,8 +1026,17 @@ SetVar:         // 変数代入
     s_array1:
         bl      s_array
         bcs     s_range_err            // 範囲外をアクセス
+        mov     x3, xv4                // 配列先頭を退避
         adds    xv4, xv4, x1           // 添字を加えた要素アドレス
         b.vs    s_range_err            // アドレス計算のオーバーフロー
+        cmp     x1, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    s_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    s_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #1
         bl      RangeCheckSpan         // 1バイト要素全体を範囲チェック
         bcs     s_range_err
@@ -1039,8 +1051,17 @@ SetVar:         // 変数代入
         asr     x3, x2, #1
         cmp     x3, x1
         bne     s_range_err            // オフセットのオーバーフロー
+        mov     x3, xv4
         adds    xv4, xv4, x2
         b.vs    s_range_err
+        cmp     x1, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    s_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    s_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #2
         bl      RangeCheckSpan         // 2バイト要素全体を範囲チェック
         bcs     s_range_err
@@ -1055,8 +1076,17 @@ SetVar:         // 変数代入
         asr     x3, x2, #2
         cmp     x3, x1
         bne     s_range_err            // オフセットのオーバーフロー
+        mov     x3, xv4
         adds    xv4, xv4, x2
         b.vs    s_range_err
+        cmp     x1, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    s_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    s_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #4
         bl      RangeCheckSpan         // 4バイト要素全体を範囲チェック
         bcs     s_range_err
@@ -1071,8 +1101,17 @@ SetVar:         // 変数代入
         asr     x3, x2, #3
         cmp     x3, x1
         bne     s_range_err            // オフセットのオーバーフロー
+        mov     x3, xv4
         adds    xv4, xv4, x2
         b.vs    s_range_err
+        cmp     x1, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    s_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    s_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #8
         bl      RangeCheckSpan         // 8バイト要素全体を範囲チェック
         bcs     s_range_err
@@ -1098,7 +1137,8 @@ SetVar:         // 変数代入
         tst     xv1, xv1
         beq     2f
         mov     x1, xv4
-        add     xv4, xv4, x2
+        adds    xv4, xv4, x2
+        b.cs    s_range_err            // 文字列の書き込み先アドレス折り返し
         bl      RangeCheck             // 文字列の書き込み先を確認
         mov     xv4, x1
         bcs     s_range_err
@@ -1108,7 +1148,8 @@ SetVar:         // 変数代入
         blo     1b
     2:                                 // done
         mov     x1, xv4
-        add     xv4, xv4, x2
+        adds    xv4, xv4, x2
+        b.cs    s_range_err            // 終端NULの書き込み先アドレス折り返し
         bl      RangeCheck             // 終端NULの書き込み先を確認
         mov     xv4, x1
         bcs     s_range_err
@@ -1138,19 +1179,25 @@ SetVar:         // 変数代入
         bl      RangeCheck
         mov     xv4, x1
         bcs     s_range_err
-        ldrb    w1, [x0], #1
+        ldrb    w1, [x0]
         tst     w1, w1
         beq     2f
         cmp     x2, x3
         bhs     3f
-        strb    w1, [xv4], #1
+        adds    x4, x0, #1
+        b.cs    s_range_err            // コピー元アドレスの折り返し
+        adds    x5, xv4, #1
+        b.cs    s_range_err            // コピー先アドレスの折り返し
+        strb    w1, [xv4]
+        mov     x0, x4
+        mov     xv4, x5
         add     x2, x2, #1
         b       1b
     2:  mov     w1, wzr                // コピー元の終端NUL
-        strb    w1, [xv4], #1
+        strb    w1, [xv4]
         b       4f
     3:  mov     w1, wzr                // 上限ではNULを付けて終了
-        strb    w1, [xv4], #1
+        strb    w1, [xv4]
     4:
         mov     x1, #'%                // %
         str     x2, [x29, x1,LSL #3]   // コピーされた文字数
@@ -1161,7 +1208,8 @@ Lstrptr_length:
         mov     x2, xzr
 Lstrptr_length_loop:
         mov     x1, xv4
-        add     xv4, xv4, x2
+        adds    xv4, xv4, x2
+        b.cs    s_range_err            // 読み出し位置のアドレス折り返し
         bl      RangeCheck             // 読み出し位置を確認
         mov     xv4, x1
         bcs     s_range_err
@@ -1230,29 +1278,42 @@ Lrange_check_ok:
         ret
 
 //-------------------------------------------------------------------------
-// xv4からx1バイト分の先頭と末尾を範囲チェック
+// アクセス範囲の先頭と末尾が許可範囲内かを確認
+// xv4 に先頭アドレス, x1 にバイト数を設定して呼び出す
+// 配列添字の論理的な範囲は確認しない
 //-------------------------------------------------------------------------
 RangeCheckSpan:
         stp     x3, x30, [sp, #-16]!
-        stp     x1, x2, [sp, #-16]!
-        mov     x3, xv4                // 元の先頭アドレスを保存
-        mov     x2, x1                 // アクセス幅
-        bl      RangeCheck             // 先頭を確認
-        bcs     Lrange_span_error
-        sub     x1, x2, #1
-        adds    xv4, x3, x1            // 最後のバイト
-        bcs     Lrange_span_error
-        bl      RangeCheck             // 最後を確認
-        bcs     Lrange_span_error
+        mov     x3, xv4
+        bl      RangeCheck             // 先頭アドレスを確認
+        bcs     1f
+        cbz     x1, 1f                 // 0バイトの範囲は不正
+        sub     x2, x1, #1
+        adds    xv4, x3, x2            // 最終バイトのアドレス
+        b.cs    1f                     // アドレス計算の折り返し
+        mov     x2, #'['
+        ldr     x2, [x29, x2,LSL #3]
+        tst     x2, x2
+        beq     3f                     // 範囲チェック無効ならここで終了
+        adr     x2, input2
+        cmp     x3, x2
+        bcc     2f
+        add     x2, x2, #MAXLINE
+        cmp     x3, x2
+        bhs     2f
+        cmp     xv4, x2
+        bhs     1f                     // 入力バッファの終端を越えた
+        b       3f
+    2:
+        bl      RangeCheck             // 最終バイトを確認
+        bcs     1f
+    3:
         mov     xv4, x3
-        ldp     x1, x2, [sp], #16
         ldp     x3, x30, [sp], #16
         ret
-Lrange_span_error:
-        mov     xv4, x3
+    1:  mov     xv4, x3
         mov     x0, #0x29000000
         msr     nzcv, x0               // set carry
-        ldp     x1, x2, [sp], #16
         ldp     x3, x30, [sp], #16
         ret
 
@@ -1562,8 +1623,17 @@ Variable:
     v_array1:
         bl      Exp                    // 1バイト配列
         ldr     xv4, [xv4]
+        mov     x3, xv4
         adds    xv4, xv4, x0           // 添字を加えた要素アドレス
         b.vs    v_range_err
+        cmp     x0, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    v_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    v_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #1
         bl      RangeCheckSpan         // 1バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
@@ -1579,8 +1649,17 @@ Variable:
         asr     x2, x1, #1
         cmp     x2, x0
         bne     v_range_err
+        mov     x3, xv4
         adds    xv4, xv4, x1
         b.vs    v_range_err
+        cmp     x0, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    v_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    v_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #2
         bl      RangeCheckSpan         // 2バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
@@ -1596,8 +1675,17 @@ Variable:
         asr     x2, x1, #2
         cmp     x2, x0
         bne     v_range_err
+        mov     x3, xv4
         adds    xv4, xv4, x1
         b.vs    v_range_err
+        cmp     x0, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    v_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    v_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #4
         bl      RangeCheckSpan         // 4バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
@@ -1607,14 +1695,23 @@ Variable:
         ret
 
     v_array8:
-        bl      Exp                    // 4バイト配列
+        bl      Exp                    // 8バイト配列
         ldr     xv4, [xv4]
         lsl     x1, x0, #3             // 8バイト要素のオフセット
         asr     x2, x1, #3
         cmp     x2, x0
         bne     v_range_err
+        mov     x3, xv4
         adds    xv4, xv4, x1
         b.vs    v_range_err
+        cmp     x0, #0
+        b.lt    6f
+        cmp     xv4, x3
+        b.lo    v_range_err
+        b       7f
+    6:  cmp     xv4, x3
+        b.hi    v_range_err            // 負の添字によるアドレス折り返し
+    7:
         mov     x1, #8
         bl      RangeCheckSpan         // 8バイト要素全体を範囲チェック
         bcs     v_range_err            // 範囲外をアクセス
@@ -2238,7 +2335,13 @@ LineInsert:
         mov     xip, #'&               // ヒープ先頭(コード末)
         ldr     x3, [x29, xip,LSL #3]  // ヒープ先頭アドレス
         mov     x2, x3                 // 元のヒープ先頭
-        add     x3, x3, x1             // 新ヒープ先頭計算
+        adds    x3, x3, x1             // 新ヒープ先頭計算
+        b.cs    Lline_insert_no_memory // アドレス計算の折り返し
+        mov     x4, #'*'
+        ldr     x4, [x29, x4,LSL #3]  // 確保済みメモリの終端
+        cmp     x4, x3
+        b.lo    Lline_insert_no_memory
+        mov     xip, #'&'
         str     x3, [x29, xip,LSL #3]  // 新ヒープ先頭設定
         sub     xv1, x2, xv2           // 移動バイト数
 
@@ -2261,6 +2364,10 @@ LineInsert:
         mov     xv5, #1                // 次に行入力 EOL=yes
         ldp     x0, x30, [sp], #16
         ret                            // Mainloopにreturn
+Lline_insert_no_memory:
+        bl      RangeError             // 確保済みメモリを超えた
+        ldp     x0, x30, [sp], #16
+        ret
 
 //-------------------------------------------------------------------------
 // 行の削除
@@ -2455,6 +2562,10 @@ READ_FILE:
         ldrb    w0, [x1]
         cmp     x0, #10             // LineFeed ?
         beq     3f
+        adr     x2, input2
+        add     x2, x2, #(MAXLINE-1) // 終端NUL用の1バイトを残す
+        cmp     x1, x2
+        bhs     1b                  // 長い行は残りを読み捨てる
         add     x1, x1, #1          // input++
         b       1b
     2:
@@ -3198,25 +3309,43 @@ Com_FileWrite:
     1:  bl      GetFileName
         bl      OutAsciiZ
     2:  bl      fwopen                 // open
-        beq     3f
+        beq     Lfile_write_return
         bmi     SYS_Error
         str     x0, [x29, #-24]        // FileDescW
+        stp     xv4, x4, [sp, #-16]!
 
         mov     x2, #'{'               // 格納領域先頭
         ldr     x1, [x29, x2,LSL #3]   // バッファ指定
         mov     x2, #'}'               // 格納領域最終
         ldr     x3, [x29, x2,LSL #3]   //
         cmp     x3, x1
-        blo     3f
+        blo     Lfile_write_range_error
         sub     x2, x3, x1             // 書き込みサイズ
+        mov     x4, x1                 // バッファ先頭
+        mov     x5, x2                 // 書き込みサイズ
+        cbz     x2, Lfile_write_data
+        mov     xv4, x4
+        mov     x1, x5
+        bl      RangeCheckSpan         // 読み出し範囲を確認
+        bcs     Lfile_write_range_error
+Lfile_write_data:
+        mov     x1, x4
+        mov     x2, x5
         ldr     x0, [x29, #-24]        // FileDescW
         mov     x8, #sys_write         // システムコール
         svc     #0
         ldr     x0, [x29, #-24]        // FileDescW
         bl      fclose
-    3: // exit:
+        ldp     xv4, x4, [sp], #16
+Lfile_write_return:
         ldp     x0, x30, [sp], #16
         ret
+Lfile_write_range_error:
+        ldr     x0, [x29, #-24]
+        bl      fclose
+        bl      RangeError
+        ldp     xv4, x4, [sp], #16
+        b       Lfile_write_return
 
 //-------------------------------------------------------------------------
 // FileRead )=
@@ -3235,44 +3364,74 @@ Com_FileRead:
 
     1:  bl      GetFileName
     2:  bl      fropen                 // open
-        beq     3f
+        beq     Lfile_read_return
         bmi     SYS_Error
         str     x0, [x29, #-24]        // 第１引数 : fd
+        stp     xv4, x4, [sp, #-16]!
         mov     x1, xzr                // 第２引数 : offset = 0
         mov     x2, #SEEK_END          // 第３引数 : origin
         mov     x8, #sys_lseek         // ファイルサイズを取得
         svc     #0
+        tst     x0, x0
+        bmi     Lfile_read_lseek_error
 
-        mov     x3, x0                 // file_size 退避
+        mov     x4, x0                 // file_size 退避
         ldr     x0, [x29, #-24]        // 第１引数 : fd
         mov     x1, xzr                // 第２引数 : offset=0
         mov     x2, x1                 // 第３引数 : origin=0
         mov     x8, #sys_lseek         // ファイル先頭にシーク
         svc     #0
+        tst     x0, x0
+        bmi     Lfile_read_lseek_error
 
         mov     x0, #'{'               // 格納領域先頭
-        ldr     x1, [x29, x0,LSL #3]   // バッファ指定
+        ldr     x5, [x29, x0,LSL #3]   // バッファ指定
         mov     x0, #')'
-        str     x3, [x29, x0,LSL #3]   // 読み込みサイズ設定
-        add     x2, x1, x3             // 最終アドレス計算
+        str     x4, [x29, x0,LSL #3]   // 読み込みサイズ設定
+        adds    x2, x5, x4             // 最終アドレス計算
+        b.cs    Lfile_read_range_error // アドレス計算の折り返し
         mov     x0, #'}'
         str     x2, [x29, x0,LSL #3]   // 格納領域最終設定
         mov     x0, #'*'
         ldr     x3, [x29, x0,LSL #3]   // RAM末
-        cmp     x3, x1
-        blo     3f                     // x3<x1 領域不足エラー
+        cmp     x3, x2
+        blo     Lfile_read_range_error // x3<x1 領域不足エラー
+        cbz     x4, Lfile_read_data    // 0バイトならメモリに触れない
+        mov     xv4, x5
+        mov     x1, x4
+        bl      RangeCheckSpan         // 書き込み範囲を確認
+        bcs     Lfile_read_range_error
 
+Lfile_read_data:
         ldr     x0, [x29, #-24]        // FileDescW
+        mov     x1, x5                 // 読み込み先
+        mov     x2, x4                 // 読み込みサイズ
         mov     x8, #sys_read          // ファイル全体を読みこみ
         svc     #0
-        mov     x2, x0
+        mov     x4, x0
         ldr     x0, [x29, #-24]        // FileDescW
         bl      fclose
-        tst     x2, x2                 // Read Error
-        bmi     SYS_Error
-    3: // exit
+        tst     x4, x4                 // Read Error
+        bmi     Lfile_read_sys_error
+        ldp     xv4, x4, [sp], #16
+Lfile_read_return:
         ldp     x0, x30, [sp], #16
         ret
+Lfile_read_sys_error:
+        mov     x0, x4
+        ldp     xv4, x4, [sp], #16
+        b       SYS_Error
+Lfile_read_lseek_error:
+        mov     x4, x0
+        ldr     x0, [x29, #-24]
+        bl      fclose
+        b       Lfile_read_sys_error
+Lfile_read_range_error:
+        ldr     x0, [x29, #-24]
+        bl      fclose
+        bl      RangeError
+        ldp     xv4, x4, [sp], #16
+        b       Lfile_read_return
 
 //-------------------------------------------------------------------------
 // 終了

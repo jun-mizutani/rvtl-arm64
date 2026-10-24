@@ -811,6 +811,8 @@ InsertFileName:
         beq     9f                     // 複数あるが追加補完不可
 
     4:
+        cmp     rv5, #(MAXLINE-1)      // 終端NULを残せるか
+        bhs     Lcompletion_input_full
         ldrb    w0, [x3]               // 補完分をコピー
         strb    w0, [rv1, rv5]         // 入力バッファに追加
         subs    x2, x2, #1
@@ -820,6 +822,8 @@ InsertFileName:
         b       4b                     //
 
     6:
+        cmp     rv5, #(MAXLINE-1)      // 終端NULを残せるか
+        bhs     Lcompletion_input_full
         ldrb    w0, [x3]               // ファイル名をコピー
         strb    w0, [rv1, rv5]         // 入力バッファに追加
         add     x3, x3, #1             // 次の文字
@@ -830,6 +834,14 @@ InsertFileName:
     8:
         mov     w0, wzr                // 補完終了
         strb    w0, [rv1, rv5]         // 入力バッファ末を0
+        b       9f
+Lcompletion_input_full:
+        cmp     rv5, #MAXLINE
+        blo     1f
+        mov     rv5, #(MAXLINE-1)
+    1:  mov     w0, wzr
+        strb    w0, [rv1, rv5]         // 入力バッファ末を0
+        b       9f
     9:
         ldp     x3, rv8, [sp], #16
         ldp     x1, x2,  [sp], #16

@@ -1,8 +1,8 @@
 //-------------------------------------------------------------------------
 // Return of the Very Tiny Language for ARM64
 // file : rvtla64.s
-// 2015/07/16 - 2025/08/10 ver. 4.02
-// Copyright (C) 2003-2025 Jun Mizutani <mizutani.jun@nifty.ne.jp>
+// 2015/07/16 - 2026/10/24 ver. 4.03
+// Copyright (C) 2003-2026 Jun Mizutani <mizutani.jun@nifty.ne.jp>
 // rvtl.s may be copied under the terms of the GNU General Public License.
 //-------------------------------------------------------------------------
 
@@ -12,7 +12,7 @@ MEMINIT     =   256*1024
 LSTACKMAX   =   127
 FNAMEMAX    =   256
 LABELMAX    =   1024
-VERSION     =   40100
+VERSION     =   40300
 VERSION64   =   1
 CPU         =   5
 
@@ -3071,6 +3071,7 @@ Com_FileWrite:
         ldr     x0, [x29, #-24]        // FileDescW
         mov     x8, #sys_write         // システムコール
         svc     #0
+        ldr     x0, [x29, #-24]        // FileDescW
         bl      fclose
     3: // exit:
         ldp     x0, x30, [sp], #16
@@ -4191,7 +4192,7 @@ mem_init:       .quad   MEMINIT
 
 .ifndef SMALL_VTL
                 .align   3
-start_msg:      .ascii   "RVTL64 Arm64 v.4.02 2025-08-10,(C)2015-2025 Jun Mizutani\n"
+start_msg:      .ascii   "RVTL64 Arm64 v.4.03 2026-10-24,(C)2015-2026 Jun Mizutani\n"
                 .ascii   "RVTL may be copied under the terms of the GNU "
                 .asciz   "General Public License.\n"
                 .align   3
